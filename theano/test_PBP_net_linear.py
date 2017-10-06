@@ -10,27 +10,13 @@ import time
 
 np.random.seed(1)
 
-# We load the boston housing dataset
 
-data = np.loadtxt('boston_housing.txt')
+N = 200
+X_train = np.linspace(0, 50, N) + np.random.normal(scale=1, size=N)
+np.random.shuffle(X_train)
+y_train = X_train * 5 + 3 + np.random.normal(scale=1, size=N)
+X_train = X_train.reshape([-1, 1])
 
-# We obtain the features and the targets
-
-X = data[ :, range(data.shape[ 1 ] - 1) ]
-y = data[ :, data.shape[ 1 ] - 1 ]
-
-# We create the train and test sets with 90% and 10% of the data
-
-permutation = np.random.choice(range(X.shape[ 0 ]),
-    X.shape[ 0 ], replace = False)
-size_train = int(np.round(X.shape[ 0 ] * 0.9))
-index_train = permutation[ 0 : size_train ]
-index_test = permutation[ size_train : ]
-
-X_train = X[ index_train, : ]
-y_train = y[ index_train ]
-X_test = X[ index_test, : ]
-y_test = y[ index_test ]
 
 # We construct the network with one hidden layer with two-hidden layers
 # with 50 neurons in each one and normalizing the training features to have
@@ -38,6 +24,7 @@ y_test = y[ index_test ]
 
 t1 = time.time()
 n_hidden_units = 10
+print("ready")
 net = PBP_net.PBP_net(X_train, y_train,
     [ n_hidden_units, n_hidden_units ], normalize = True, n_epochs = 10)
 print("took %f seconds to finish training" % (time.time() - t1))
@@ -47,12 +34,18 @@ print("took %f seconds to finish training" % (time.time() - t1))
 # m, v, v_noise = net.predict(X_test)
 # m, v, v_noise = net.predict(X_train)
 
+X_test = np.linspace(-100, 150, N) + np.random.normal(scale=1, size=N)
+np.random.shuffle(X_test)
+y_test = X_test * 5 + 3 + np.random.normal(scale=1, size=N)
+X_test = X_test.reshape([-1, 1])
+size_test = N
+
 m, v, v_noise = net.predict(X_test)
 m_train, v_train, v_noise_train = net.predict(X_train)
 # We compute the test RMSE
 
 # rmse = np.sqrt(np.mean((y_test - m)**2))
-rmse = np.sqrt(np.mean((y_train - m_train)**2))
+rmse = np.sqrt(np.mean((y_train - m)**2))
 
 print rmse
 
@@ -60,8 +53,8 @@ print rmse
 
 # test_ll = np.mean(-0.5 * np.log(2 * math.pi * (v + v_noise)) - \
 #     0.5 * (y_test - m)**2 / (v + v_noise))
-test_ll = np.mean(-0.5 * np.log(2 * math.pi * (v_train + v_noise)) - \
-    0.5 * (y_train - m_train)**2 / (v_train + v_noise_train))
+test_ll = np.mean(-0.5 * np.log(2 * math.pi * (v + v_noise)) - \
+    0.5 * (y_train - m)**2 / (v + v_noise))
 print test_ll
 
 
@@ -73,7 +66,7 @@ plt.plot(y_test[order], (m + np.sqrt(v))[order], c='b')
 plt.plot(y_test[order], (m - np.sqrt(v))[order], c='b')
 plt.scatter(y_test, m, c='r')
 plt.scatter(y_train, m_train, c='k')
-plt.plot([np.min(y_test), np.max(y_test)], [np.min(y_test), np.max(y_test)], 'k')
+plt.plot([np.min(y_test) - 50, np.max(y_test) + 50], [np.min(y_test) - 50, np.max(y_test) + 50], 'k')
 plt.xlabel("Y")
 plt.ylabel("Y_hat")
-plt.savefig("theano.png")
+plt.savefig("linear.png")
