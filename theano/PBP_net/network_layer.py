@@ -7,7 +7,7 @@ import theano.tensor as T
 
 class Network_layer:
 
-    def __init__(self, m_w_init, v_w_init, non_linear = True):
+    def __init__(self, m_w_init, v_w_init, non_linear = True, dropout = None):
 
         # We create the theano variables for the means and variances
 
@@ -22,6 +22,7 @@ class Network_layer:
 
         self.non_linear = non_linear
 
+        self.dropout = dropout
         # We store the number of inputs
 
         self.n_inputs = theano.shared(float(m_w_init.shape[ 1 ]))
@@ -45,6 +46,13 @@ class Network_layer:
     def beta(x):
 
         return Network_layer.gamma(x) * (Network_layer.gamma(x) - x)
+
+    def do_dropout(self, m, v):
+        if self.dropout:
+            m_init = m
+            m = self.dropout * m
+            v = self.dropout * v + self.dropout * (1.0 - self.dropout) * m_init * m_init
+        return m, v
 
     def output_probabilistic(self, m_w_previous, v_w_previous):
 
@@ -78,11 +86,11 @@ class Network_layer:
                 Network_layer.n_cdf(alpha) * v_linear * \
                 (1 - gamma_final * (gamma_final + alpha))
 
-            return (m_a, v_a)
+            return self.do_dropout(m_a, v_a)
 
         else:
 
-            return (m_linear, v_linear)
+            return self.do_dropout(m_linear, v_linear)
 
     def output_deterministic(self, output_previous):
 

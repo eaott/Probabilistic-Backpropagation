@@ -15,11 +15,22 @@ import prior
 
 class PBP:
 
-    def __init__(self, layer_sizes, mean_y_train, std_y_train):
+    def __init__(self, layer_sizes, mean_y_train, std_y_train, dropout = None, ep = True):
 
         var_targets = 1
         self.std_y_train = std_y_train
         self.mean_y_train = mean_y_train
+
+        self.ep = ep
+
+        if dropout is None:
+            self.dropout = [None] * (len(layer_sizes) - 2)
+        elif type(dropout) is float:
+            self.dropout = [dropout] * (len(layer_sizes) - 2)
+        elif len(dropout) == (len(layer_sizes) - 2):
+            self.dropout = dropout
+        else:
+            raise ValueError("Dropout format incompatible with layers")
 
         # We initialize the prior
 
@@ -29,13 +40,13 @@ class PBP:
 
         params = self.prior.get_initial_params()
         self.network = network.Network(params[ 'm_w' ], params[ 'v_w' ],
-            params[ 'a' ], params[ 'b' ])
+            params[ 'a' ], params[ 'b' ], self.dropout)
 
         # We create the input and output variables in theano
 
         self.x = T.vector('x')
         self.y = T.scalar('y')
-        
+
         # A function for computing the value of logZ, logZ1 and logZ2
 
         self.logZ, self.logZ1, self.logZ2 = \
@@ -69,8 +80,8 @@ class PBP:
             params = self.prior.refine_prior(params)
             self.network.set_params(params)
 
-            sys.stdout.write('{}\n'.format(0))
-            sys.stdout.flush()
+            # sys.stdout.write('{}\n'.format(0))
+            # sys.stdout.flush()
 
             for i in range(int(n_iterations) - 1):
 
@@ -80,13 +91,13 @@ class PBP:
                 self.do_first_pass(X_train, y_train)
 
                 # We refine the prior
+                if self.ep:
+                    params = self.network.get_params()
+                    params = self.prior.refine_prior(params)
+                    self.network.set_params(params)
 
-                params = self.network.get_params()
-                params = self.prior.refine_prior(params)
-                self.network.set_params(params)
-
-                sys.stdout.write('{}\n'.format(i + 1))
-                sys.stdout.flush()
+                # sys.stdout.write('{}\n'.format(i + 1))
+                # sys.stdout.flush()
 
     def get_deterministic_output(self, X_test):
 
@@ -127,14 +138,14 @@ class PBP:
             self.network.remove_invalid_updates(new_params, old_params)
             self.network.set_params(new_params)
 
-            if counter % 1000 == 0:
-                sys.stdout.write('.')
-                sys.stdout.flush()
+            # if counter % 1000 == 0:
+            #     sys.stdout.write('.')
+            #     sys.stdout.flush()
 
             counter += 1
 
-        sys.stdout.write('\n')
-        sys.stdout.flush()
+        # sys.stdout.write('\n')
+        # sys.stdout.flush()
 
     def sample_w(self):
 

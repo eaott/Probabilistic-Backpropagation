@@ -10,7 +10,7 @@ import pbp
 class PBP_net:
 
     def __init__(self, X_train, y_train, n_hidden, n_epochs = 40,
-        normalize = False):
+        normalize = False, dropout = None, ep = True):
 
         """
             Constructor for the class implementing a Bayesian neural network
@@ -29,6 +29,11 @@ class PBP_net:
                                 example formed by binary features (a
                                 fingerprint). In that case we do not recommend
                                 to normalize the features.
+            @param dropout      When to include any dropout layers and what probability to include.
+                                If None, no dropout. If float, uses that as dropout probability on every
+                                layer except output: input->(fc->relu->dropout)...->fc. Otherwise,
+                                specify values for each layer as above.
+            @param ep           Whether to run the EP step every epoch.
         """
 
         # We normalize the training data to have zero mean and unit standard
@@ -47,7 +52,8 @@ class PBP_net:
 
         self.mean_y_train = np.mean(y_train)
         self.std_y_train = np.std(y_train)
-
+        # self.mean_y_train = 0.0
+        # self.std_y_train = 1.0
         y_train_normalized = (y_train - self.mean_y_train) / self.std_y_train
 
         # We construct the network
@@ -55,7 +61,7 @@ class PBP_net:
         n_units_per_layer = \
             np.concatenate(([ X_train.shape[ 1 ] ], n_hidden, [ 1 ]))
         self.pbp_instance = \
-            pbp.PBP(n_units_per_layer, self.mean_y_train, self.std_y_train)
+            pbp.PBP(n_units_per_layer, self.mean_y_train, self.std_y_train, dropout, ep)
 
         # We iterate the learning process
 
@@ -72,10 +78,10 @@ class PBP_net:
             @param y_train      Vector with the target variables for the
                                 training data.
             @param n_epochs     Numer of epochs for which to train the
-                                network. 
+                                network.
         """
 
-        # We normalize the training data 
+        # We normalize the training data
 
         X_train = (X_train - np.full(X_train.shape, self.mean_X_train)) / \
             np.full(X_train.shape, self.std_X_train)
@@ -90,8 +96,8 @@ class PBP_net:
             Function for making predictions with the Bayesian neural network.
 
             @param X_test   The matrix of features for the test data
-            
-    
+
+
             @return m       The predictive mean for the test target variables.
             @return v       The predictive variance for the test target
                             variables.
@@ -121,8 +127,8 @@ class PBP_net:
             Function for making predictions with the Bayesian neural network.
 
             @param X_test   The matrix of features for the test data
-            
-    
+
+
             @return o       The predictive value for the test target variables.
 
         """
@@ -143,6 +149,24 @@ class PBP_net:
 
         return o
 
+    def get_weights(self):
+        net = self.pbp_instance.network
+        means = [m_w.get_value() for m_w in net.params_m_w]
+        vars = [v_w.get_value() for v_w in net.params_v_w]
+        a = net.a.get_value()
+        b = net.b.get_value()
+        return {"means": means,
+                "vars": vars,
+                "a": a,
+                "b": b}
+    def set_weights(self, weights):
+        net = self.pbp_instance.network
+        for i in xrange(len(weights["means"])):
+            net.params_m_w[i].set_value(weights["means"][i])
+            net.params_v_w[i].set_value(weights["vars"][i])
+        net.a.set_value(weights["a"])
+        net.b.set_value(weights["b"])
+
     def sample_weights(self):
 
         """
@@ -150,7 +174,7 @@ class PBP_net:
             to the weights distribution.
 
         """
- 
+
         self.pbp_instance.sample_w()
 
     def save_to_file(self, filename):
@@ -159,7 +183,7 @@ class PBP_net:
             Function that stores the network in a file.
 
             @param filename   The name of the file.
-            
+
         """
 
         # We save the network to a file using pickle
@@ -178,7 +202,7 @@ def load_PBP_net_from_file(filename):
         Function that load a network from a file.
 
         @param filename   The name of the file.
-        
+
     """
 
     def load_object(filename):
